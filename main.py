@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
-import utils
+import services
 from db.database import engine, Base, get_db
-from schemas import UrlBody, UrlResponse, UrlMetaData
+from schemas import UrlBody, UrlResponse
 from db import db_url
 from datetime import datetime
 from db.models import UrlTable
@@ -14,26 +14,23 @@ Base.metadata.create_all(engine)
 def root(db: Session = Depends(get_db)):
     return db.query(UrlTable).all()
 
-@app.post('/shorten')
+@app.post('/shorten', response_model=UrlResponse)
 def shorten_url(body:UrlBody, db:Session = Depends(get_db)):
-    long_url = body.url
-    expiry_duration = body.duration
-    return db_url.add_short_url(utils.create_absolute_url(long_url), db, expiry_duration)
+    result = services.shorten_url(body.url, body.duration, db)
+    return UrlResponse(
+        longurl=result.longurl,
+        meta_data=result
+    )
 
 
 @app.get('/stats/{short_id}', response_model=UrlResponse)
-def get_url(short_id: str, db: Session = Depends(get_db)):
-    result = db_url.get_url(short_id, db)
+def get_url_metadata(short_id: str, db: Session = Depends(get_db)):
+    result = services.get_url_stats(short_id, db)
 
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail= 'Not a valid code'
-        )
-    elif result.expires_on is not None and result.expires_on < datetime.now():
-        raise HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail= 'Link has expired'
         )
     else:
         return UrlResponse(
@@ -41,27 +38,26 @@ def get_url(short_id: str, db: Session = Depends(get_db)):
             meta_data=result
         )
 
-@app.get('/{short_url}')
-def redirect_to_long_url(short_url: str, db: Session = Depends(get_db)):
-    print(f"Short ID: {short_url}")
-    result = db_url.get_url(short_url, db)
+@app.get('/{short_code}')
+def redirect_to_long_url(short_code: str, db: Session = Depends(get_db)):
+    result = services.get_redirect_url(short_code, db)
 
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail= 'Not a valid code'
         )
-    elif result.expires_on is not None and result.expires_on < datetime.now():
+    elif result.get('expires_on') and result['expires_on'] < datetime.now():
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail= 'Link has expired'
         )
     else:
-        if db_url.update_clicks(short_url, db):
+        if db_url.update_clicks(short_code, db):
             return RedirectResponse(
-                url=result.longurl
+                url=result['longurl']
             )
         else:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
