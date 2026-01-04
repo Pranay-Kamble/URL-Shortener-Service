@@ -1,3 +1,4 @@
+.DS_Store
 *.idea
 *.http
 # Byte-compiled / optimized / DLL files
