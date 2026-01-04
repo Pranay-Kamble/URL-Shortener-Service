@@ -43,17 +43,20 @@ def get_redirect_url(short_code: str, db: Session):
                 except:
                     pass
 
-        return {
-            "longurl": cache_result['longurl'],
-            "expires_on": expiration_date
-        }
+        if expiration_date and expiration_date < datetime.now():
+            return None
+
+        return UrlTable(
+            longurl=cache_result['longurl'],
+            expires_on=expiration_date
+        )
 
     result = db_url.get_url_data(short_code, db)
 
     if result:
-        return {
-            "longurl": result.longurl,
-            "expires_on": result.expires_on
-        }
+        return UrlTable(
+            longurl=result.longurl,
+            expires_on=result.expires_on
+        )
 
     return None

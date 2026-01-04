@@ -47,15 +47,15 @@ def redirect_to_long_url(short_code: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail= 'Not a valid code'
         )
-    elif result.get('expires_on') and result['expires_on'] < datetime.now():
+    elif result.expires_on and result.expires_on < datetime.now():
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail= 'Link has expired'
         )
     else:
-        if db_url.update_clicks(short_code, db):
+        if db_url.update_analytics(short_code, db):
             return RedirectResponse(
-                url=result['longurl']
+                url=result.longurl
             )
         else:
             raise HTTPException(
