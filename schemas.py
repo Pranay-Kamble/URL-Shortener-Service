@@ -9,11 +9,14 @@ class UrlMetaData(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UrlResponse(BaseModel):
+class ShortUrlResponse(BaseModel):
+    longurl: str
+    model_config = ConfigDict(from_attributes=True)
+
+class LongUrlResponse(BaseModel):
     longurl: str
     meta_data: UrlMetaData
     model_config = ConfigDict(from_attributes=True)
-
 
 class UrlBody(BaseModel):
     url: str

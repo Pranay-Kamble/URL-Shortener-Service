@@ -1,31 +1,40 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from fastapi.responses import RedirectResponse
 import services
-from db.database import engine, Base, get_db
-from schemas import UrlBody, UrlResponse
+from db.database import engine, Base, get_db, redis_client
+from schemas import UrlBody, ShortUrlResponse, LongUrlResponse
 from db import db_url
 from datetime import datetime
 from db.models import UrlTable
-app = FastAPI()
-Base.metadata.create_all(engine)
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    await redis_client.aclose()
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
-def root(db: Session = Depends(get_db)):
-    return db.query(UrlTable).all()
+async def root(db: AsyncSession = Depends(get_db)):
+    statement = select(UrlTable)
+    return (await db.execute(statement)).scalars().all()
 
-@app.post('/shorten', response_model=UrlResponse)
-def shorten_url(body:UrlBody, db:Session = Depends(get_db)):
-    result = services.shorten_url(body.url, body.duration, db)
-    return UrlResponse(
-        longurl=result.longurl,
-        meta_data=result
+@app.post('/shorten', response_model=ShortUrlResponse)
+async def shorten_url(body:UrlBody, db: AsyncSession = Depends(get_db)):
+    result = await services.shorten_url(body.url, body.duration, db)
+    return ShortUrlResponse(
+        longurl=result.longurl
     )
 
 
-@app.get('/stats/{short_id}', response_model=UrlResponse)
-def get_url_metadata(short_id: str, db: Session = Depends(get_db)):
-    result = services.get_url_stats(short_id, db)
+@app.get('/stats/{short_id}', response_model=LongUrlResponse)
+async def get_url_metadata(short_id: str, db: AsyncSession = Depends(get_db)):
+    result = await services.get_url_stats(short_id, db)
 
     if result is None:
         raise HTTPException(
@@ -33,14 +42,14 @@ def get_url_metadata(short_id: str, db: Session = Depends(get_db)):
             detail= 'Not a valid code'
         )
     else:
-        return UrlResponse(
+        return LongUrlResponse(
             longurl=result.longurl,
             meta_data=result
         )
 
 @app.get('/{short_code}')
-def redirect_to_long_url(short_code: str, db: Session = Depends(get_db)):
-    result = services.get_redirect_url(short_code, db)
+async def redirect_to_long_url(short_code: str, db: AsyncSession = Depends(get_db)):
+    result = await services.get_redirect_url(short_code, db)
 
     if result is None:
         raise HTTPException(
@@ -53,7 +62,7 @@ def redirect_to_long_url(short_code: str, db: Session = Depends(get_db)):
             detail= 'Link has expired'
         )
     else:
-        if db_url.update_analytics(short_code, db):
+        if await db_url.update_analytics(short_code, db):
             return RedirectResponse(
                 url=result.longurl
             )

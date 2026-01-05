@@ -1,7 +1,7 @@
 import logging
 
 from sqlalchemy.orm import Session
-from db.database import redis_client, get_db, SessionLocal
+from db.database import redis_client, get_db, AsyncSessionLocal
 from db.models import UrlTable
 from datetime import datetime
 
@@ -10,7 +10,7 @@ logging.basicConfig(filename='sync_logs.log', level=logging.INFO, filemode='a')
 def sync_redis_to_postgres():
     try:
         updated_short_codes_list = redis_client.keys('stats:*')
-        db: Session = SessionLocal()
+        db: Session = AsyncSessionLocal()
 
         for short_code_string in updated_short_codes_list:
             short_code = short_code_string.split(':')[-1]
