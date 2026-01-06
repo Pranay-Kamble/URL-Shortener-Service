@@ -1,0 +1,51 @@
+version: '3.8'
+
+# 1. THE SHARED TEMPLATE (Anchor)
+x-app-base: &app-base
+  build: .
+  restart: always
+  depends_on:
+    - db
+    - redis
+  environment:
+    - PYTHONPATH=/app
+    - DATABASE_URL=postgresql+asyncpg://myuser:mypassword@db:5432/url_shortener_db
+    - REDIS_URL=redis
+    - SYNC_INTERVAL=10
+
+services:
+
+  # DATABASE
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: url_shortener_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # CACHE
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # APP (Inherits from template)
+  app:
+    <<: *app-base  # <--- Merges everything from x-app-base
+    command: gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+
+  # WORKER (Inherits from template)
+  sync_worker:
+    <<: *app-base  # <--- Merges everything from x-app-base
+    command: python service/sync.py
+
+volumes:
+  postgres_data:
