@@ -10,7 +10,7 @@ class UrlMetaData(BaseModel):
 
 
 class ShortUrlResponse(BaseModel):
-    longurl: str
+    shorturl: str
     model_config = ConfigDict(from_attributes=True)
 
 class LongUrlResponse(BaseModel):

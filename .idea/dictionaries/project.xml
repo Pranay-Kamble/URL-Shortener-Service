@@ -2,6 +2,7 @@
   <dictionary name="project">
     <words>
       <w>abcdefghijklmnopqrstuvwxyz</w>
+      <w>myuser</w>
       <w>setex</w>
     </words>
   </dictionary>

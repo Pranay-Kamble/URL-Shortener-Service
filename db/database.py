@@ -5,11 +5,11 @@ import os
 import redis.asyncio as redis
 
 load_dotenv()
-SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL')
+SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL', "postgresql+asyncpg://myuser:mypassword@localhost:5432/url_shortener_db")
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
-    echo=True
+    echo=False
 )
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
