@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from db.models import UrlTable
 from datetime import datetime, timedelta
-import utils
+from service import utils
 from db.database import redis_client
 
 async def update_analytics(short_code: str, db:AsyncSession):

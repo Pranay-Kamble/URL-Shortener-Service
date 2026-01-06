@@ -1,15 +1,15 @@
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from fastapi.responses import RedirectResponse
-import services
+from fastapi.responses import RedirectResponse, PlainTextResponse
+
 from db.database import engine, Base, get_db, redis_client
-from schemas import UrlBody, ShortUrlResponse, LongUrlResponse
+from db.schemas import UrlBody, ShortUrlResponse, LongUrlResponse
 from db import db_url
 from datetime import datetime
 from db.models import UrlTable
+from service import services
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
@@ -21,6 +21,10 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
 async def root(db: AsyncSession = Depends(get_db)):
+    return PlainTextResponse(
+        content="You have successfully reached URL Shortener endpoint",
+        status_code=status.HTTP_200_OK
+    )
     statement = select(UrlTable)
     return (await db.execute(statement)).scalars().all()
 
@@ -28,7 +32,7 @@ async def root(db: AsyncSession = Depends(get_db)):
 async def shorten_url(body:UrlBody, db: AsyncSession = Depends(get_db)):
     result = await services.shorten_url(body.url, body.duration, db)
     return ShortUrlResponse(
-        longurl=result.longurl
+        shorturl=result.shorturl
     )
 
 

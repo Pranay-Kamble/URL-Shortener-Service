@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import db_url
 from db.database import redis_client
 from db.models import UrlTable
-import utils
+from service import utils
 
 def parse_date(date_str: str):
     if not date_str or date_str == "None":
