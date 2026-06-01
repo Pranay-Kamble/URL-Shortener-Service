@@ -1,48 +1,23 @@
 version: '3.8'
 
-# x-app-base: &app-base
-#   build: .
-#   image: url-shortener-backend:latest
-#   restart: always
-#   depends_on:
-#     - db
-#     - redis
-#   environment:
-#     - PYTHONPATH=/app
-#     - DATABASE_URL=postgresql+asyncpg://myuser:mypassword@db:5432/url_shortener_db
-#     - REDIS_URL=redis
-#     - SYNC_INTERVAL=10
-
 services:
-
-  db:
-    image: postgres:15-alpine
+  web:
+    build: .
+    container_name: url-shortener-web
     restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: url_shortener_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Pass the PORT variable so the Dockerfile CMD knows which port to bind to
+      - PORT=8000
 
-  redis:
-    image: redis:alpine
+  worker:
+    build: .
+    container_name: url-shortener-worker
     restart: always
-    ports:
-      - "6379:6379"
-
-  # app:
-  #   <<: *app-base
-  #   command: gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-  #   ports:
-  #     - "8000:8000"
-
-  # # WORKER (Inherits from template)
-  # sync_worker:
-  #   <<: *app-base
-  #   command: python service/sync.py
-
-volumes:
-  postgres_data:
+    # Override the default command in the Dockerfile to run the sync script instead
+    command: python service/sync.py
+    env_file:
+      - .env
