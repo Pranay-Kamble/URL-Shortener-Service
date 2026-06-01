@@ -1,4 +1,0 @@
-We can provide two services
-    1. Public one, free without login, URL auto deleted after 3 days or some fixed duration set by user
-    2. Private one, with user auth, unlimited duration, also possible to edit and delete
-

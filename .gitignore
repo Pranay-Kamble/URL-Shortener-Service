@@ -69,3 +69,5 @@ ENV/
 env.bak/
 venv.bak/
 ecker
+
+.antigravityignore
