@@ -1,7 +1,0 @@
-[build]
-dockerfilePath = "Dockerfile"
-
-[deploy]
-startCommand = "python service/sync.py"
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 5

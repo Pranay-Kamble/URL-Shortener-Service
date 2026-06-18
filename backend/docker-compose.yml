@@ -1,23 +1,25 @@
 version: '3.8'
 
 services:
-  web:
-    build: .
-    container_name: url-shortener-web
+  db:
+    image: postgres:15-alpine
+    container_name: url-shortener-db
+    restart: always
+    environment:
+      POSTGRES_DB: url_shortener_db
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: url-shortener-redis
     restart: always
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    environment:
-      # Pass the PORT variable so the Dockerfile CMD knows which port to bind to
-      - PORT=8000
+      - "6379:6379"
 
-  worker:
-    build: .
-    container_name: url-shortener-worker
-    restart: always
-    # Override the default command in the Dockerfile to run the sync script instead
-    command: python service/sync.py
-    env_file:
-      - .env
+volumes:
+  pgdata:
