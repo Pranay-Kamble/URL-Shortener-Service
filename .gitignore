@@ -71,3 +71,6 @@ venv.bak/
 ecker
 
 .antigravityignore
+
+# Unignore Next.js lib folder
+!frontend/lib/
