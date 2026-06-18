@@ -1,6 +1,8 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi.responses import RedirectResponse, PlainTextResponse
@@ -11,6 +13,7 @@ from db import db_url
 from datetime import datetime
 from db.models import UrlTable
 from service import services
+from service.sync import sync_redis_to_postgres
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
@@ -48,6 +51,42 @@ async def shorten_url(body:UrlBody, db: AsyncSession = Depends(get_db)):
     return ShortUrlResponse(
         shorturl=result.shorturl
     )
+
+
+security = HTTPBearer()
+
+@app.post('/cron/sync')
+async def trigger_sync(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+):
+    token = credentials.credentials
+    expected_token = os.getenv("CRON_SECRET")
+    
+    if not expected_token:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="CRON_SECRET is not configured on the server."
+        )
+        
+    if token != expected_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing Cron Secret Token"
+        )
+        
+    try:
+        synced_codes = await sync_redis_to_postgres(db)
+        return {
+            "status": "success",
+            "message": f"Successfully synchronized {len(synced_codes)} short URLs to PostgreSQL.",
+            "synced_codes": synced_codes
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during synchronization: {str(e)}"
+        )
 
 
 @app.get('/stats/{short_id}', response_model=LongUrlResponse)
